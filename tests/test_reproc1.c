@@ -1,7 +1,7 @@
 /*******************/
 #define _POSIX_C_SOURCE     200809L
 #define LOG_TIME_ENABLED    false
-#define QTY                 100
+#define QTY                 10
 #define VERSION             "v1.0.0"
 /*******************/
 #include <stdarg.h>
@@ -42,9 +42,10 @@ static int parent(const char *program){
   for (int i = 0; i < NUM_CHILDREN; i++) {
     reproc_t   *process = reproc_new();
 
-    const char *args[] = { "sleep", "0.01", NULL };
+    const char *date_args[]  = { "date", NULL };
+    const char *sleep_args[] = { "sleep", "0.01", NULL };
 
-    r = reproc_start(process, args, (reproc_options){ .nonblocking = true });
+    r = reproc_start(process, date_args, (reproc_options){ .nonblocking = true });
     if (r < 0) {
       goto finish;
     }
@@ -64,13 +65,9 @@ static int parent(const char *program){
       if (children[i].process == NULL || !children[i].events) {
         continue;
       }
-
       uint8_t output[4096];
-      r = reproc_read(children[i].process, REPROC_STREAM_OUT, output,
-                      sizeof(output));
+      r = reproc_read(children[i].process, REPROC_STREAM_OUT, output, sizeof(output));
       if (r == REPROC_EPIPE) {
-        // `reproc_destroy` returns `NULL`. Event sources with their process set
-        // to `NULL` are ignored by `reproc_poll`.
         children[i].process = reproc_destroy(children[i].process);
         continue;
       }
@@ -78,9 +75,11 @@ static int parent(const char *program){
       if (r < 0) {
         goto finish;
       }
-
       output[r] = '\0';
-      printf("%s\n", output);
+
+      char msg[1024];
+      sprintf(&msg, "<%d> %s", getpid(), trim(output));
+      log_ok(trim(msg));
     }
   }
 
@@ -90,8 +89,9 @@ finish:
   }
 
   if (r < 0) {
-    fprintf(stderr, "%s\n", reproc_strerror(r));
+    log_error("%s", reproc_strerror(r));
   }
+
 
   return(abs(r));
 } /* parent */
@@ -102,7 +102,7 @@ static int child(void){
   int ms = rand() % NUM_CHILDREN * 4; // NOLINT
 
   millisleep(ms);
-  printf("Process %i slept %i milliseconds.", getpid(), ms);
+  log_info("Process %i slept %i milliseconds.", getpid(), ms);
   return(EXIT_SUCCESS);
 }
 

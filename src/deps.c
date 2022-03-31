@@ -26,3 +26,6 @@
 #define OPTPARSE_IMPLEMENTATION
 #include "deps/c_optparse/optparse.h"
 /********************/
+#include "deps/trim/trim.c"
+/********************/
+
